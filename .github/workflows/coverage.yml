@@ -16,11 +16,14 @@ jobs:
 
       # Bersihkan & jalankan coverage untuk lib + bins + integration tests
       - name: Run coverage (fail if <100%)
+        env:
+          RUST_TEST_THREADS: "1"        # serial di dalam tiap test binary
         run: |
           cargo llvm-cov clean --workspace
-          cargo llvm-cov --workspace --all-features \
+          cargo llvm-cov --workspace --all-features -j 1 \
             --lcov --fail-under-lines 100 \
-            --ignore-filename-regex '(.*/tests/.*|.*/.cargo/.*)'
+            --ignore-filename-regex '(.*/tests/.*|.*/.cargo/.*)' \
+            -- --test-threads=1
 
       # (Opsional) upload laporan HTML agar bisa dilihat di Actions artifact
       - name: Generate HTML report
