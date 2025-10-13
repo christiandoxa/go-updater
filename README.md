@@ -14,17 +14,17 @@ Program ini akan:
 5. Instal ke `/usr/local/go` (dengan `sudo`/`pkexec`/`su`)
 6. Verifikasi ulang instalasi (`go version`)
 
-> **Edition Rust:** 2024
+> **Rust edition:** 2024
 
 ---
 
 ## 🚀 Fitur
 
 * Deteksi otomatis versi Go yang terpasang
-* Download + verifikasi SHA256
+* Unduh + verifikasi SHA256
 * Eskalasi privilese otomatis (`sudo` → `pkexec` → `su`)
 * Verifikasi **pasca-instal**
-* Arsitektur dipetakan otomatis (x86_64→amd64, aarch64→arm64)
+* Pemetaan arsitektur otomatis (x86_64→amd64, aarch64→arm64)
 
 ---
 
@@ -32,7 +32,7 @@ Program ini akan:
 
 * Linux / Unix-like
 * Rust & Cargo
-* Internet aktif
+* Koneksi internet
 * Hak `sudo` untuk instal ke `/usr/local`
 
 ---
@@ -106,37 +106,43 @@ cargo test
 
 Catatan:
 
-* Test **tidak** membutuhkan jaringan/akses root beneran: ia memakai env override:
+* Test **tidak** membutuhkan jaringan/akses root sungguhan: gunakan env override berikut saat test:
 
-    * `GO_UPDATER_JSON_INLINE` → menyuntik JSON rilis inline
-    * `GO_UPDATER_ASSUME_ROOT=1` → menganggap proses sebagai root pada jalur tertentu
-    * `GO_UPDATER_SUDO`, `GO_UPDATER_PKEXEC`, `GO_UPDATER_SU` → menunjuk biner palsu saat menguji fallback eskalasi
+  * `GO_UPDATER_JSON_INLINE` → menyuntik JSON rilis inline
+  * `GO_UPDATER_ASSUME_ROOT=1` → menganggap proses sebagai root pada jalur tertentu
+  * `GO_UPDATER_SUDO`, `GO_UPDATER_PKEXEC`, `GO_UPDATER_SU` → menunjuk biner palsu saat menguji fallback eskalasi
 
 ---
 
-## ✅ Coverage 100%
+## ✅ Coverage (dengan `cargo-llvm-cov`)
 
-Menggunakan **cargo-tarpaulin**.
+### Jalankan lokal
 
-### Lokal
-
-1. Install tarpaulin:
+1. Install:
 
 ```bash
-cargo install cargo-tarpaulin
+cargo install cargo-llvm-cov
 ```
 
-2. Jalankan coverage (gagal bila < 100%):
+2. Hasilkan laporan & buka HTML:
 
 ```bash
-cargo tarpaulin --engine llvm --run-types Tests,Bins --fail-under 100
+cargo llvm-cov clean --workspace
+cargo llvm-cov --workspace --all-features --html --open
 ```
 
-Keterangan:
+3. (Opsional) Gate coverage dengan ambang tertentu:
 
-* `--run-types Tests,Bins` memastikan **baris di `main.rs` (bin target)** juga terinstrumentasi, bukan hanya test
-  binaries.
-* Test integration `tests/main_bin.rs` menjalankan binari via `assert_cmd::cargo_bin`.
+```bash
+# gagal jika < 100% line coverage
+cargo llvm-cov --workspace --all-features --fail-under-lines 100
+```
+
+> Tips: jika kamu juga ingin file LCOV untuk integrasi eksternal:
+>
+> ```bash
+> cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+> ```
 
 ---
 
