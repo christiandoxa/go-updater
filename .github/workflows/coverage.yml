@@ -1,18 +1,32 @@
 name: Coverage
-
-on:
-  push:
-  pull_request:
-
+on: [ push, pull_request ]
 jobs:
-  tarpaulin:
+  llvm-cov:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-      - name: Install tarpaulin
-        run: cargo install cargo-tarpaulin
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+
+      # Install cargo-llvm-cov
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
+
+      # Bersihkan & jalankan coverage untuk lib + bins + integration tests
       - name: Run coverage (fail if <100%)
-        run: cargo tarpaulin --engine llvm --out Xml --fail-under 100
+        run: |
+          cargo llvm-cov clean --workspace
+          cargo llvm-cov --workspace --all-features \
+            --lcov --fail-under-lines 100 \
+            --ignore-filename-regex '(.*/tests/.*|.*/.cargo/.*)'
+
+      # (Opsional) upload laporan HTML agar bisa dilihat di Actions artifact
+      - name: Generate HTML report
+        run: cargo llvm-cov --workspace --all-features --html
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: target/llvm-cov/html
