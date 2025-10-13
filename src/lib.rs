@@ -191,14 +191,22 @@ impl Fs for RealFs {
 
 /// ==== API utama yang di-test ====
 pub fn run_update<H: Http, S: Sys, F: Fs>(http: &H, sys: &S, fs: &F) -> Result<()> {
+    const TOTAL_STEPS: usize = 9;
+
     // 1) fetch JSON
-    let json = if let Ok(inline) = std::env::var("GO_UPDATER_JSON_INLINE") {
-        inline
+    eprintln!("→ [1/{TOTAL_STEPS}] Mengambil daftar rilis Go…");
+    let (json, sumber_json) = if let Ok(inline) = std::env::var("GO_UPDATER_JSON_INLINE") {
+        (inline, "env GO_UPDATER_JSON_INLINE".to_string())
     } else {
         let url = std::env::var("GO_UPDATER_JSON_URL")
             .unwrap_or_else(|_| "https://go.dev/dl/?mode=json".to_string());
-        http.get_json(&url)?
+        let text = http.get_json(&url)?;
+        (text, format!("GET {url}"))
     };
+    eprintln!("   • Sumber: {sumber_json}");
+
+    // 2) parse & pilih latest stable
+    eprintln!("→ [2/{TOTAL_STEPS}] Memilih rilis stabil terbaru…");
     let releases: Vec<GoRelease> = serde_json::from_str(&json)?;
     let latest = releases
         .iter()
@@ -218,8 +226,14 @@ pub fn run_update<H: Http, S: Sys, F: Fs>(http: &H, sys: &S, fs: &F) -> Result<(
         })
         .ok_or_else(|| anyhow!("tidak ada stable release"))?;
     let latest_sem = GoSemver::parse(&latest.version)?;
+    eprintln!(
+        "   • Terbaru: {} ({} artefak)",
+        latest.version,
+        latest.files.len()
+    );
 
-    // 2) versi lokal
+    // 3) versi lokal
+    eprintln!("→ [3/{TOTAL_STEPS}] Mengecek versi Go lokal…");
     let local = sys
         .go_version(None)
         .unwrap_or_else(|_| "go0.0.0".to_string());
@@ -228,14 +242,19 @@ pub fn run_update<H: Http, S: Sys, F: Fs>(http: &H, sys: &S, fs: &F) -> Result<(
         minor: 0,
         patch: 0,
     });
+    eprintln!("   • Versi lokal: {local}");
 
-    // 3) jika sudah terbaru → selesai
+    // 4) perbandingan versi
+    eprintln!("→ [4/{TOTAL_STEPS}] Membandingkan versi…");
     if local_sem >= latest_sem {
+        eprintln!("✓ Sudah terbaru ({local}) — tidak perlu update.");
         return Ok(());
     }
+    eprintln!("   • Perlu update: {local} → {}", latest.version);
 
-    // 4) pilih artefak linux-<arch>.tar.gz
+    // 5) pilih artefak linux-<arch>.tar.gz
     let arch = map_arch(std::env::consts::ARCH);
+    eprintln!("→ [5/{TOTAL_STEPS}] Memilih artefak untuk linux-{arch} (.tar.gz) …");
     let pick = latest
         .files
         .iter()
@@ -246,27 +265,36 @@ pub fn run_update<H: Http, S: Sys, F: Fs>(http: &H, sys: &S, fs: &F) -> Result<(
                 && f.filename.ends_with(".tar.gz")
         })
         .ok_or_else(|| anyhow!("artefak linux-{arch} tidak ditemukan"))?;
+    eprintln!("   • Artefak: {}", pick.filename);
 
-    // 5) unduh & verifikasi
+    // 6) unduh
     let url = format!("https://go.dev/dl/{}", pick.filename);
     let dest = fs.tmp_path(&pick.filename);
+    eprintln!("→ [6/{TOTAL_STEPS}] Mengunduh {} → {}", url, dest.display());
     http.download(&url, &dest)?;
-    fs.verify_sha256(&dest, &pick.sha256)?;
 
-    // 6) instalasi (root)
+    // 7) verifikasi sha256
+    eprintln!("→ [7/{TOTAL_STEPS}] Verifikasi SHA256…");
+    fs.verify_sha256(&dest, &pick.sha256)?;
+    eprintln!("   • OK: checksum cocok");
+
+    // 8) instalasi (root)
+    eprintln!("→ [8/{TOTAL_STEPS}] Menginstal ke /usr/local (membutuhkan hak admin)…");
     let cmd = format!(
         "rm -rf /usr/local/go && tar -C /usr/local -xzf {}",
         dest.display()
     );
     sys.run_root(&cmd)?;
 
-    // 7) verifikasi pasca-instal
+    // 9) verifikasi pasca-instal
+    eprintln!("→ [9/{TOTAL_STEPS}] Verifikasi pemasangan (go version)…");
     let newv = sys
         .go_version(Some("/usr/local/go/bin/go"))
         .or_else(|_| sys.go_version(None))?;
     if newv != latest.version {
         return Err(anyhow!("verifikasi gagal: {newv} != {}", latest.version));
     }
+    eprintln!("✓ Selesai: terpasang {}", newv);
     Ok(())
 }
 
