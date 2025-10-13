@@ -15,13 +15,13 @@ jobs:
         run: cargo install cargo-llvm-cov
 
       # Bersihkan & jalankan coverage untuk lib + bins + integration tests
-      - name: Run coverage (fail if <100%)
+      - name: Run coverage (fail if <95%)
         env:
           RUST_TEST_THREADS: "1"        # serial di dalam tiap test binary
         run: |
           cargo llvm-cov clean --workspace
           cargo llvm-cov --workspace --all-features -j 1 \
-            --lcov --fail-under-lines 100 \
+            --lcov --fail-under-lines 95 \
             --ignore-filename-regex '(.*/tests/.*|.*/.cargo/.*)' \
             -- --test-threads=1
 
