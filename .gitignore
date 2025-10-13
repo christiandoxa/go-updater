@@ -1,0 +1,62 @@
+# ---------------------------
+# Rust / Cargo
+# ---------------------------
+/target/
+**/*.rs.bk
+
+# (Sengaja TIDAK mengabaikan Cargo.lock untuk aplikasi)
+# !Cargo.lock
+
+# Build artifacts (platform-specific)
+*.exe
+*.exe~
+*.dll
+*.dylib
+*.so
+*.a
+*.lib
+*.pdb
+
+# Profiling & coverage
+*.profraw
+*.profdata
+llvm-profile-data/
+coverage/
+htmlcov/
+grcov/
+
+# Logs & runtime junk
+*.log
+
+# Archives (hasil unduh sementara, kalau sampai tersalin ke repo)
+*.tar.gz
+*.zip
+
+# ---------------------------
+# OS-specific
+# ---------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.fuse_hidden*
+.nfs*
+
+# ---------------------------
+# Editors / IDE
+# ---------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
