@@ -8,7 +8,7 @@ use std::io::{Read, copy};
 use std::path::PathBuf;
 use std::process::Command;
 
-/// ==== Data dari go.dev ====
+/// ==== Data from go.dev ====
 #[derive(Debug, Deserialize, Clone)]
 pub struct GoRelease {
     pub version: String,
@@ -36,11 +36,11 @@ impl GoSemver {
     pub fn parse(tag: &str) -> Result<Self> {
         let s = tag
             .strip_prefix("go")
-            .ok_or_else(|| anyhow!("bukan format Go: {tag}"))?;
+            .ok_or_else(|| anyhow!("not a Go format: {tag}"))?;
         let parts: Vec<_> = s.split('.').collect();
         let major = parts
             .get(0)
-            .ok_or_else(|| anyhow!("versi tidak valid"))?
+            .ok_or_else(|| anyhow!("invalid version"))?
             .parse()?;
         let minor = parts.get(1).unwrap_or(&"0").parse()?;
         let patch = parts.get(2).unwrap_or(&"0").parse()?;
@@ -67,7 +67,7 @@ impl Ord for GoSemver {
     }
 }
 
-/// ==== Abstraksi I/O supaya bisa di-mock ====
+/// ==== I/O abstractions for mocking ====
 pub trait Http {
     fn get_json(&self, url: &str) -> Result<String>;
     fn download(&self, url: &str, dest: &PathBuf) -> Result<()>;
@@ -82,7 +82,7 @@ pub trait Fs {
     fn tmp_path(&self, filename: &str) -> PathBuf;
 }
 
-/// Implementasi nyata
+/// Real implementations
 pub struct RealHttp;
 impl Http for RealHttp {
     fn get_json(&self, url: &str) -> Result<String> {
@@ -110,7 +110,9 @@ impl Sys for RealSys {
         }
         let s = String::from_utf8_lossy(&out.stdout);
         let re = Regex::new(r"go version (go[0-9.]+)")?;
-        let caps = re.captures(&s).ok_or_else(|| anyhow!("parse gagal: {s}"))?;
+        let caps = re
+            .captures(&s)
+            .ok_or_else(|| anyhow!("parse failed: {s}"))?;
         Ok(caps.get(1).unwrap().as_str().to_string())
     }
 
@@ -122,22 +124,22 @@ impl Sys for RealSys {
     }
 
     fn run_root(&self, cmd: &str) -> Result<()> {
-        // override nama program via env (untuk test)
+        // Override program names via env (for tests).
         let sudo_prog = std::env::var("GO_UPDATER_SUDO").unwrap_or_else(|_| "sudo".into());
         let pkexec_prog = std::env::var("GO_UPDATER_PKEXEC").unwrap_or_else(|_| "pkexec".into());
         let su_prog = std::env::var("GO_UPDATER_SU").unwrap_or_else(|_| "su".into());
 
-        // root langsung
+        // Run directly as root.
         if self.is_root() {
             let st = Command::new("sh").arg("-c").arg(cmd).status()?;
             return if st.success() {
                 Ok(())
             } else {
-                Err(anyhow!("cmd gagal (root)"))
+                Err(anyhow!("command failed (root)"))
             };
         }
 
-        // coba sudo → pkexec dengan helper (swallow error ENOENT)
+        // Try sudo -> pkexec with helper (swallow ENOENT).
         if try_run(&sudo_prog, &["sh", "-c", cmd]).unwrap_or(false) {
             return Ok(());
         }
@@ -145,22 +147,22 @@ impl Sys for RealSys {
             return Ok(());
         }
 
-        // terakhir: su (tetap beri context di error agar jelas)
+        // Last: su (keep context in error for clarity).
         let st = Command::new(&su_prog)
             .arg("-c")
             .arg(cmd)
             .status()
-            .context("gagal eskalasi (sudo/pkexec/su)")?;
+            .context("privilege escalation failed (sudo/pkexec/su)")?;
         if st.success() {
             Ok(())
         } else {
-            Err(anyhow!("cmd gagal (su)"))
+            Err(anyhow!("command failed (su)"))
         }
     }
 }
 
-// Helper generik untuk menjalankan program dan mengembalikan true jika sukses.
-// Mengembalikan Err(io::Error) jika gagal spawn; call-site boleh .unwrap_or(false).
+// Generic helper to run a program and return true on success.
+// Returns Err(io::Error) if spawn fails; call-site may .unwrap_or(false).
 fn try_run(prog: &str, args: &[&str]) -> std::io::Result<bool> {
     Command::new(prog).args(args).status().map(|s| s.success())
 }
@@ -189,13 +191,13 @@ impl Fs for RealFs {
     }
 }
 
-/// ==== API utama yang di-test ====
+/// ==== Main API under test ====
 pub fn run_update<H: Http, S: Sys, F: Fs>(http: &H, sys: &S, fs: &F) -> Result<()> {
     const TOTAL_STEPS: usize = 9;
 
     // 1) fetch JSON
-    eprintln!("→ [1/{TOTAL_STEPS}] Mengambil daftar rilis Go…");
-    let (json, sumber_json) = if let Ok(inline) = std::env::var("GO_UPDATER_JSON_INLINE") {
+    eprintln!("→ [1/{TOTAL_STEPS}] Fetching Go release list...");
+    let (json, source_json) = if let Ok(inline) = std::env::var("GO_UPDATER_JSON_INLINE") {
         (inline, "env GO_UPDATER_JSON_INLINE".to_string())
     } else {
         let url = std::env::var("GO_UPDATER_JSON_URL")
@@ -203,10 +205,10 @@ pub fn run_update<H: Http, S: Sys, F: Fs>(http: &H, sys: &S, fs: &F) -> Result<(
         let text = http.get_json(&url)?;
         (text, format!("GET {url}"))
     };
-    eprintln!("   • Sumber: {sumber_json}");
+    eprintln!("   • Source: {source_json}");
 
-    // 2) parse & pilih latest stable
-    eprintln!("→ [2/{TOTAL_STEPS}] Memilih rilis stabil terbaru…");
+    // 2) parse & pick latest stable
+    eprintln!("→ [2/{TOTAL_STEPS}] Picking latest stable release...");
     let releases: Vec<GoRelease> = serde_json::from_str(&json)?;
     let latest = releases
         .iter()
@@ -224,16 +226,16 @@ pub fn run_update<H: Http, S: Sys, F: Fs>(http: &H, sys: &S, fs: &F) -> Result<(
             });
             va.cmp(&vb)
         })
-        .ok_or_else(|| anyhow!("tidak ada stable release"))?;
+        .ok_or_else(|| anyhow!("no stable release found"))?;
     let latest_sem = GoSemver::parse(&latest.version)?;
     eprintln!(
-        "   • Terbaru: {} ({} artefak)",
+        "   • Latest: {} ({} artifacts)",
         latest.version,
         latest.files.len()
     );
 
-    // 3) versi lokal
-    eprintln!("→ [3/{TOTAL_STEPS}] Mengecek versi Go lokal…");
+    // 3) local version
+    eprintln!("→ [3/{TOTAL_STEPS}] Checking local Go version...");
     let local = sys
         .go_version(None)
         .unwrap_or_else(|_| "go0.0.0".to_string());
@@ -242,19 +244,19 @@ pub fn run_update<H: Http, S: Sys, F: Fs>(http: &H, sys: &S, fs: &F) -> Result<(
         minor: 0,
         patch: 0,
     });
-    eprintln!("   • Versi lokal: {local}");
+    eprintln!("   • Local version: {local}");
 
-    // 4) perbandingan versi
-    eprintln!("→ [4/{TOTAL_STEPS}] Membandingkan versi…");
+    // 4) version comparison
+    eprintln!("→ [4/{TOTAL_STEPS}] Comparing versions...");
     if local_sem >= latest_sem {
-        eprintln!("✓ Sudah terbaru ({local}) — tidak perlu update.");
+        eprintln!("✓ Already up to date ({local}) — no update needed.");
         return Ok(());
     }
-    eprintln!("   • Perlu update: {local} → {}", latest.version);
+    eprintln!("   • Update needed: {local} -> {}", latest.version);
 
-    // 5) pilih artefak linux-<arch>.tar.gz
+    // 5) pick linux-<arch>.tar.gz artifact
     let arch = map_arch(std::env::consts::ARCH);
-    eprintln!("→ [5/{TOTAL_STEPS}] Memilih artefak untuk linux-{arch} (.tar.gz) …");
+    eprintln!("→ [5/{TOTAL_STEPS}] Picking artifact for linux-{arch} (.tar.gz) ...");
     let pick = latest
         .files
         .iter()
@@ -264,37 +266,41 @@ pub fn run_update<H: Http, S: Sys, F: Fs>(http: &H, sys: &S, fs: &F) -> Result<(
                 && f.kind == "archive"
                 && f.filename.ends_with(".tar.gz")
         })
-        .ok_or_else(|| anyhow!("artefak linux-{arch} tidak ditemukan"))?;
-    eprintln!("   • Artefak: {}", pick.filename);
+        .ok_or_else(|| anyhow!("linux-{arch} artifact not found"))?;
+    eprintln!("   • Artifact: {}", pick.filename);
 
-    // 6) unduh
+    // 6) download
     let url = format!("https://go.dev/dl/{}", pick.filename);
     let dest = fs.tmp_path(&pick.filename);
-    eprintln!("→ [6/{TOTAL_STEPS}] Mengunduh {} → {}", url, dest.display());
+    eprintln!(
+        "→ [6/{TOTAL_STEPS}] Downloading {} -> {}",
+        url,
+        dest.display()
+    );
     http.download(&url, &dest)?;
 
-    // 7) verifikasi sha256
-    eprintln!("→ [7/{TOTAL_STEPS}] Verifikasi SHA256…");
+    // 7) verify sha256
+    eprintln!("→ [7/{TOTAL_STEPS}] Verifying SHA256...");
     fs.verify_sha256(&dest, &pick.sha256)?;
-    eprintln!("   • OK: checksum cocok");
+    eprintln!("   • OK: checksum matches");
 
-    // 8) instalasi (root)
-    eprintln!("→ [8/{TOTAL_STEPS}] Menginstal ke /usr/local (membutuhkan hak admin)…");
+    // 8) installation (root)
+    eprintln!("→ [8/{TOTAL_STEPS}] Installing to /usr/local (requires admin rights)...");
     let cmd = format!(
         "rm -rf /usr/local/go && tar -C /usr/local -xzf {}",
         dest.display()
     );
     sys.run_root(&cmd)?;
 
-    // 9) verifikasi pasca-instal
-    eprintln!("→ [9/{TOTAL_STEPS}] Verifikasi pemasangan (go version)…");
+    // 9) post-install verification
+    eprintln!("→ [9/{TOTAL_STEPS}] Verifying installation (go version)...");
     let newv = sys
         .go_version(Some("/usr/local/go/bin/go"))
         .or_else(|_| sys.go_version(None))?;
     if newv != latest.version {
-        return Err(anyhow!("verifikasi gagal: {newv} != {}", latest.version));
+        return Err(anyhow!("verification failed: {newv} != {}", latest.version));
     }
-    eprintln!("✓ Selesai: terpasang {}", newv);
+    eprintln!("✓ Done: installed {}", newv);
     Ok(())
 }
 
@@ -302,7 +308,7 @@ pub fn map_arch(arch: &'static str) -> &'static str {
     match arch {
         "x86_64" => "amd64",
         "aarch64" => "arm64",
-        other => other, // <= cabang ini sekarang bisa kita uji
+        other => other, // <= this branch is now testable
     }
 }
 
