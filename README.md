@@ -4,40 +4,40 @@
 [![Coverage](https://github.com/christiandoxa/go-updater/actions/workflows/coverage.yml/badge.svg)](https://github.com/christiandoxa/go-updater/actions/workflows/coverage.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-CLI sederhana berbasis **Rust** untuk mengecek dan memperbarui instalasi **Go (Golang)** di Linux secara otomatis.
-Program ini akan:
+A simple **Rust** CLI to check and update **Go (Golang)** on Linux automatically.
+The program will:
 
-1. Mengambil daftar rilis terbaru dari `https://go.dev/dl/?mode=json`
-2. Membandingkan dengan versi Go lokal (`go version`)
-3. Jika versi lokal lebih lama, unduh versi terbaru ke `/tmp`
-4. Verifikasi checksum **SHA256**
-5. Instal ke `/usr/local/go` (dengan `sudo`/`pkexec`/`su`)
-6. Verifikasi ulang instalasi (`go version`)
+1. Fetch the latest stable releases from `https://go.dev/dl/?mode=json`
+2. Compare with the local Go version (`go version`)
+3. If the local version is older, download the latest release to `/tmp`
+4. Verify the **SHA256** checksum
+5. Install to `/usr/local/go` (via `sudo`/`pkexec`/`su`)
+6. Re-verify the installation (`go version`)
 
 > **Rust edition:** 2024
 
 ---
 
-## 🚀 Fitur
+## 🚀 Features
 
-* Deteksi otomatis versi Go yang terpasang
-* Unduh + verifikasi SHA256
-* Eskalasi privilese otomatis (`sudo` → `pkexec` → `su`)
-* Verifikasi **pasca-instal**
-* Pemetaan arsitektur otomatis (x86_64→amd64, aarch64→arm64)
+* Auto-detect installed Go version
+* Download + SHA256 verification
+* Automatic privilege escalation (`sudo` → `pkexec` → `su`)
+* Post-install verification
+* Auto architecture mapping (x86_64→amd64, aarch64→arm64)
 
 ---
 
-## 🧩 Persyaratan
+## 🧩 Requirements
 
 * Linux / Unix-like
 * Rust & Cargo
-* Koneksi internet
-* Hak `sudo` untuk instal ke `/usr/local`
+* Internet connection
+* `sudo` access to install to `/usr/local`
 
 ---
 
-## 🛠️ Build & Jalankan
+## 🛠️ Build & Run
 
 ```bash
 git clone https://github.com/christiandoxa/go-updater.git
@@ -46,22 +46,22 @@ cargo build --release
 ./target/release/go-updater
 ```
 
-Contoh output:
+Sample output:
 
 ```
-Rilis stable terbaru di go.dev: go1.25.2
-Versi Go lokal: go1.24.8
-Akan update ke go1.25.2 dengan: go1.25.2.linux-amd64.tar.gz
-Terunduh: /tmp/go1.25.2.linux-amd64.tar.gz
+Latest stable release on go.dev: go1.25.2
+Local Go version: go1.24.8
+Will update to go1.25.2 with: go1.25.2.linux-amd64.tar.gz
+Downloaded: /tmp/go1.25.2.linux-amd64.tar.gz
 SHA256 OK (...)
-Menjalankan instalasi: rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go1.25.2.linux-amd64.tar.gz
-Verifikasi OK: go1.25.2
-Selesai. Pastikan PATH memuat /usr/local/go/bin
+Running install: rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go1.25.2.linux-amd64.tar.gz
+Verification OK: go1.25.2
+Done. Make sure PATH includes /usr/local/go/bin
 ```
 
 ---
 
-## 🧰 Struktur Proyek
+## 🧰 Project Structure
 
 ```
 go-updater/
@@ -70,10 +70,10 @@ go-updater/
 ├── LICENSE
 ├── README.md
 ├── src/
-│   ├── lib.rs         # inti logic
-│   └── main.rs        # entrypoint tipis (memanggil cli_main)
+│   ├── lib.rs         # core logic
+│   └── main.rs        # thin entrypoint (calls cli_main)
 └── tests/
-    ├── main_bin.rs                # integration test untuk binari
+    ├── main_bin.rs                # integration test for the binary
     ├── real_impls.rs              # RealHttp/RealSys/RealFs
     ├── real_sys_run_root.rs       # sudo/pkexec/su
     ├── real_sys_run_root_missing.rs
@@ -87,7 +87,7 @@ go-updater/
 
 ## ⚙️ PATH
 
-Jika `go` belum dikenali setelah instal:
+If `go` is not found after installation:
 
 ```bash
 echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
@@ -98,25 +98,25 @@ source ~/.bashrc
 
 ## 🧪 Testing
 
-Semua test ada di folder `tests/` (integration + unit via API publik).
+All tests live under `tests/` (integration + unit via the public API).
 
 ```bash
 cargo test
 ```
 
-Catatan:
+Notes:
 
-* Test **tidak** membutuhkan jaringan/akses root sungguhan: gunakan env override berikut saat test:
+* Tests **do not** require real network/root access: use the env overrides below when testing:
 
-  * `GO_UPDATER_JSON_INLINE` → menyuntik JSON rilis inline
-  * `GO_UPDATER_ASSUME_ROOT=1` → menganggap proses sebagai root pada jalur tertentu
-  * `GO_UPDATER_SUDO`, `GO_UPDATER_PKEXEC`, `GO_UPDATER_SU` → menunjuk biner palsu saat menguji fallback eskalasi
+  * `GO_UPDATER_JSON_INLINE` → inject release JSON inline
+  * `GO_UPDATER_ASSUME_ROOT=1` → treat process as root on certain paths
+  * `GO_UPDATER_SUDO`, `GO_UPDATER_PKEXEC`, `GO_UPDATER_SU` → point to fake binaries to test escalation fallback
 
 ---
 
-## ✅ Coverage (dengan `cargo-llvm-cov`)
+## ✅ Coverage (with `cargo-llvm-cov`)
 
-### Jalankan lokal
+### Run locally
 
 1. Install:
 
@@ -124,21 +124,21 @@ Catatan:
 cargo install cargo-llvm-cov
 ```
 
-2. Hasilkan laporan & buka HTML:
+2. Generate report & open HTML:
 
 ```bash
 cargo llvm-cov clean --workspace
 cargo llvm-cov --workspace --all-features --html --open
 ```
 
-3. (Opsional) Gate coverage dengan ambang tertentu:
+3. (Optional) Gate coverage with a threshold:
 
 ```bash
-# gagal jika < 100% line coverage
+# fail if line coverage < 100%
 cargo llvm-cov --workspace --all-features --fail-under-lines 100
 ```
 
-> Tips: jika kamu juga ingin file LCOV untuk integrasi eksternal:
+> Tip: if you also want an LCOV file for external tooling:
 >
 > ```bash
 > cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
@@ -146,15 +146,15 @@ cargo llvm-cov --workspace --all-features --fail-under-lines 100
 
 ---
 
-## 🔒 Env Override (untuk test/CI)
+## 🔒 Env Overrides (for tests/CI)
 
-* `GO_UPDATER_JSON_INLINE` — JSON rilis (string) untuk menggantikan fetch HTTP
-* `GO_UPDATER_JSON_URL` — URL alternatif (default: `https://go.dev/dl/?mode=json`)
-* `GO_UPDATER_ASSUME_ROOT=1` — memaksa `is_root()` true
-* `GO_UPDATER_SUDO`, `GO_UPDATER_PKEXEC`, `GO_UPDATER_SU` — path biner alternatif untuk eskalasi
+* `GO_UPDATER_JSON_INLINE` — release JSON string to replace the HTTP fetch
+* `GO_UPDATER_JSON_URL` — alternative URL (default: `https://go.dev/dl/?mode=json`)
+* `GO_UPDATER_ASSUME_ROOT=1` — force `is_root()` true
+* `GO_UPDATER_SUDO`, `GO_UPDATER_PKEXEC`, `GO_UPDATER_SU` — alternative paths for escalation binaries
 
 ---
 
-## 🪪 Lisensi
+## 🪪 License
 
 MIT © 2025 — Christian Doxa Hamasiah

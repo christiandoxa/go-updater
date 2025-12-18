@@ -2,6 +2,13 @@
 name = "go-updater"
 version = "0.1.0"
 edition = "2024"
+description = "Simple CLI to check and update Go (Golang) installations on Linux."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/christiandoxa/go-updater"
+homepage = "https://github.com/christiandoxa/go-updater"
+keywords = ["go", "golang", "updater", "cli", "linux"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 anyhow = "1.0"
