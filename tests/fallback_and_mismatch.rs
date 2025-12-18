@@ -60,6 +60,6 @@ fn parse_fallback_both_sides_and_verify_mismatch() {
     let fs = F;
 
     let err = run_update(&http, &sys, &fs).unwrap_err();
-    // baris: return Err(anyhow!("verifikasi gagal: {newv} != {}"
-    assert!(err.to_string().contains("verifikasi gagal"));
+    // line: return Err(anyhow!("verification failed: {newv} != {}"
+    assert!(err.to_string().contains("verification failed"));
 }

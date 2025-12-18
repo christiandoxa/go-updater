@@ -148,7 +148,7 @@ fn real_sys_go_version_bad_output() {
     let bin = make_exe("#!/bin/sh\necho 'not a go version'\n").unwrap();
     let sys = RealSys;
     let err = sys.go_version(Some(bin.to_str().unwrap())).unwrap_err();
-    assert!(err.to_string().contains("parse gagal"));
+    assert!(err.to_string().contains("parse failed"));
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn real_sys_run_root_success_and_fail_via_env() {
 
     // gagal
     let err = sys.run_root("false").unwrap_err();
-    assert!(err.to_string().contains("cmd gagal (root)"));
+    assert!(err.to_string().contains("command failed (root)"));
 
     // bersihkan env
     unsafe {

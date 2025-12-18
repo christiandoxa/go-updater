@@ -121,7 +121,7 @@ fn run_root_all_fail_hits_final_err() {
 
     let sys = RealSys;
     let err = sys.run_root("echo ok").unwrap_err();
-    assert!(err.to_string().contains("cmd gagal (su)"));
+    assert!(err.to_string().contains("command failed (su)"));
 
     unsafe {
         std::env::remove_var("GO_UPDATER_SUDO");
